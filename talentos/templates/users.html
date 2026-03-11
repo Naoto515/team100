@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ユーザー管理 - TalentOS</title>
+  <link rel="stylesheet" href="/static/css/common.css">
+  <style>
+    .users-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .users-title { font-size: 18px; font-weight: 600; margin: 0; }
+
+    .add-btn {
+      padding: 8px 18px; border: none; border-radius: 8px;
+      background: linear-gradient(135deg, var(--orange-500), var(--red-600));
+      color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity .15s;
+    }
+    .add-btn:hover { opacity: .88; }
+
+    .users-table { width: 100%; border-collapse: collapse; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .users-table th {
+      text-align: left; padding: 10px 16px; font-size: 12px; font-weight: 600;
+      color: var(--text-secondary); background: var(--surface-2); border-bottom: 1px solid var(--border);
+    }
+    .users-table td {
+      padding: 10px 16px; font-size: 13px; color: var(--text-primary); border-bottom: 1px solid var(--border);
+    }
+    .users-table tr:nth-child(odd) td { background: var(--surface-0); }
+    .users-table tr:nth-child(even) td { background: var(--surface-1); }
+    .role-label { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500; }
+    .role-engineer { background: var(--orange-50); color: var(--orange-600); border: 1px solid var(--orange-200); }
+    .role-sales { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+    .role-admin { background: #faf5ff; color: #7c3aed; border: 1px solid #ddd6fe; }
+
+    /* モーダル */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.4); display: none;
+      align-items: center; justify-content: center; z-index: 200;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: var(--surface-0); border-radius: 12px; padding: 28px 32px;
+      width: 100%; max-width: 420px; box-shadow: 0 8px 32px rgba(0,0,0,.12);
+    }
+    .modal h3 { font-size: 16px; font-weight: 600; margin: 0 0 20px; }
+    .modal .form-group { margin-bottom: 16px; }
+    .modal .form-group label {
+      display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;
+    }
+    .modal .form-group input, .modal .form-group select {
+      width: 100%; padding: 9px 12px; border: 1px solid var(--border-mid); border-radius: 8px;
+      font-size: 14px; color: var(--text-primary); background: var(--surface-0);
+      outline: none; box-sizing: border-box;
+    }
+    .modal .form-group input:focus, .modal .form-group select:focus {
+      border-color: var(--orange-500); box-shadow: 0 0 0 3px rgba(249,115,22,.12);
+    }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+    .modal-cancel {
+      padding: 8px 18px; border: 1px solid var(--border-mid); border-radius: 8px;
+      background: var(--surface-0); color: var(--text-secondary); font-size: 13px; cursor: pointer;
+    }
+    .modal-submit {
+      padding: 8px 18px; border: none; border-radius: 8px;
+      background: linear-gradient(135deg, var(--orange-500), var(--red-600));
+      color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .modal-error { color: var(--red-600); font-size: 12px; margin-top: 8px; display: none; }
+  </style>
+</head>
+<body>
+  <nav class="topnav">
+    <div class="topnav-left">
+      <div class="logo"><div class="logo-icon">T</div><div class="logo-text">Talent<span>OS</span></div></div>
+    </div>
+    <div class="topnav-right">
+      <div class="user-info">
+        <span class="user-name">{{ user.name }}</span>
+        <span class="role-badge">{{ user.role }}</span>
+      </div>
+      <div class="avatar-sm">{{ user.name[0] }}</div>
+    </div>
+  </nav>
+
+  <div class="sidenav">
+    {% if user.role in ['engineer', 'admin'] %}
+    <a href="/skillsheet" data-path="/skillsheet">スキルシート管理</a>
+    <a href="/hearing" data-path="/hearing">AIヒアリング</a>
+    {% endif %}
+    {% if user.role in ['sales', 'admin'] %}
+    <a href="/search" data-path="/search">人材検索</a>
+    {% endif %}
+    {% if user.role == 'admin' %}
+    <a href="/users" data-path="/users" class="active">ユーザー管理</a>
+    {% endif %}
+    <a href="#" onclick="doLogout()">ログアウト</a>
+  </div>
+
+  <div class="main-content">
+    <div class="users-header">
+      <h2 class="users-title">ユーザー管理</h2>
+      <button class="add-btn" id="add-btn">+ 新規ユーザー</button>
+    </div>
+
+    <table class="users-table">
+      <thead>
+        <tr><th>ID</th><th>氏名</th><th>ロール</th></tr>
+      </thead>
+      <tbody id="users-tbody">
+        <tr><td colspan="3" style="color:var(--text-muted);text-align:center;">読み込み中...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 新規ユーザー登録モーダル -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+      <h3>新規ユーザー登録</h3>
+      <div class="form-group">
+        <label for="new-uid">ユーザーID</label>
+        <input type="text" id="new-uid" placeholder="例: engineer02">
+      </div>
+      <div class="form-group">
+        <label for="new-name">氏名</label>
+        <input type="text" id="new-name" placeholder="例: 鈴木 次郎">
+      </div>
+      <div class="form-group">
+        <label for="new-pass">パスワード</label>
+        <input type="password" id="new-pass" placeholder="パスワード">
+      </div>
+      <div class="form-group">
+        <label for="new-role">ロール</label>
+        <select id="new-role">
+          <option value="engineer">エンジニア</option>
+          <option value="sales">営業</option>
+          <option value="admin">管理者</option>
+        </select>
+      </div>
+      <div class="modal-error" id="modal-error"></div>
+      <div class="modal-actions">
+        <button class="modal-cancel" id="modal-cancel">キャンセル</button>
+        <button class="modal-submit" id="modal-submit">登録する</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/common.js"></script>
+  <script>
+    var tbody = document.getElementById("users-tbody");
+    var overlay = document.getElementById("modal-overlay");
+    var modalError = document.getElementById("modal-error");
+
+    document.getElementById("add-btn").addEventListener("click", function () {
+      overlay.classList.add("active");
+      modalError.style.display = "none";
+    });
+    document.getElementById("modal-cancel").addEventListener("click", function () {
+      overlay.classList.remove("active");
+    });
+    overlay.addEventListener("click", function (e) {
+      if (e.target === overlay) overlay.classList.remove("active");
+    });
+
+    document.getElementById("modal-submit").addEventListener("click", createUser);
+
+    loadUsers();
+
+    async function loadUsers() {
+      try {
+        var res = await fetch("/api/users");
+        var users = await res.json();
+        renderTable(users);
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="3" style="color:var(--red-600)">読み込みに失敗しました</td></tr>';
+      }
+    }
+
+    function renderTable(users) {
+      if (!users.length) {
+        tbody.innerHTML = '<tr><td colspan="3" style="color:var(--text-muted);text-align:center;">ユーザーなし</td></tr>';
+        return;
+      }
+      var roleLabels = { engineer: "エンジニア", sales: "営業", admin: "管理者" };
+      tbody.innerHTML = users.map(function (u) {
+        var cls = "role-label role-" + u.role;
+        return '<tr>' +
+          '<td>' + esc(u.user_id) + '</td>' +
+          '<td>' + esc(u.name) + '</td>' +
+          '<td><span class="' + cls + '">' + esc(roleLabels[u.role] || u.role) + '</span></td>' +
+        '</tr>';
+      }).join("");
+    }
+
+    async function createUser() {
+      var uid = document.getElementById("new-uid").value.trim();
+      var name = document.getElementById("new-name").value.trim();
+      var pass = document.getElementById("new-pass").value;
+      var role = document.getElementById("new-role").value;
+
+      if (!uid || !name || !pass) {
+        showError("すべての項目を入力してください");
+        return;
+      }
+
+      try {
+        var res = await fetch("/api/users", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: uid, name: name, password: pass, role: role }),
+        });
+        var data = await res.json();
+
+        if (res.status === 409) {
+          showError(data.detail || "このIDは既に使用されています");
+          return;
+        }
+        if (!res.ok) {
+          showError(data.detail || "登録に失敗しました");
+          return;
+        }
+
+        overlay.classList.remove("active");
+        document.getElementById("new-uid").value = "";
+        document.getElementById("new-name").value = "";
+        document.getElementById("new-pass").value = "";
+
+        loadUsers();
+      } catch (e) {
+        showError("通信エラーが発生しました");
+      }
+    }
+
+    function showError(msg) {
+      modalError.textContent = msg;
+      modalError.style.display = "block";
+    }
+
+    function esc(s) {
+      var d = document.createElement("div");
+      d.textContent = s || "";
+      return d.innerHTML;
+    }
+  </script>
+</body>
+</html>

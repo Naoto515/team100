@@ -1,0 +1,173 @@
+/* === デザイントークン === */
+:root {
+  --orange-600: #ea580c;
+  --orange-500: #f97316;
+  --orange-400: #fb923c;
+  --orange-200: #fed7aa;
+  --orange-50:  #fff7ed;
+  --red-700:    #b91c1c;
+  --red-600:    #dc2626;
+  --red-500:    #ef4444;
+  --red-50:     #fff5f5;
+  --surface-0:  #ffffff;
+  --surface-1:  #fafaf9;
+  --surface-2:  #f5f4f2;
+  --surface-3:  #ede9e4;
+  --border:     #e5e2dc;
+  --border-mid: #d4cfc8;
+  --success:    #16a34a;
+  --success-bg: #f0fdf4;
+  --text-primary:   #1c1917;
+  --text-secondary: #57534e;
+  --text-muted:     #a8a29e;
+}
+
+/* === リセット === */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  color: var(--text-primary);
+  background: var(--surface-1);
+}
+
+/* === ロゴ === */
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, var(--orange-500), var(--red-600));
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.logo-text {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.logo-text span {
+  color: var(--orange-500);
+}
+
+/* === トップナビ === */
+.topnav {
+  height: 56px;
+  background: var(--surface-0);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+}
+
+.topnav-left {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.topnav-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.role-badge {
+  font-size: 10px;
+  text-transform: uppercase;
+  font-weight: 600;
+  background: var(--orange-50);
+  border: 1px solid var(--orange-200);
+  color: var(--orange-600);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.avatar-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--orange-500), var(--red-600));
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* === 左サイドナビ === */
+.sidenav {
+  width: 180px;
+  background: var(--surface-0);
+  border-right: 1px solid var(--border);
+  position: fixed;
+  top: 56px;
+  left: 0;
+  bottom: 0;
+  padding: 12px 0;
+  overflow-y: auto;
+}
+
+.sidenav a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: background .1s, color .1s;
+}
+
+.sidenav a:hover {
+  background: var(--surface-2);
+}
+
+.sidenav a.active {
+  background: var(--orange-50);
+  color: var(--orange-600);
+  font-weight: 600;
+}
+
+/* === メインコンテンツ === */
+.main-content {
+  margin-top: 56px;
+  margin-left: 180px;
+  padding: 24px;
+  min-height: calc(100vh - 56px);
+}

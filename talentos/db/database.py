@@ -1,0 +1,38 @@
+"""SQLite 接続・初期化"""
+
+import sqlite3
+import os
+from passlib.hash import bcrypt
+from db.models import TABLES
+
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "talentos.db")
+
+
+def get_connection() -> sqlite3.Connection:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    return conn
+
+
+def init_db():
+    conn = get_connection()
+    cur = conn.cursor()
+
+    for sql in TABLES:
+        cur.execute(sql)
+
+    # 初期ユーザー
+    seed_users = [
+        ("admin01", "admin123", "管理者", "admin"),
+        ("engineer01", "pass123", "山田 太郎", "engineer"),
+        ("sales01", "pass123", "佐藤 花子", "sales"),
+    ]
+    for user_id, password, name, role in seed_users:
+        cur.execute(
+            "INSERT OR IGNORE INTO users (user_id, password_hash, name, role) VALUES (?, ?, ?, ?)",
+            (user_id, bcrypt.hash(password), name, role),
+        )
+
+    conn.commit()
+    conn.close()

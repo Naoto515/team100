@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>人材検索 - TalentOS</title>
+  <link rel="stylesheet" href="/static/css/common.css">
+  <style>
+    .search-area { max-width: 900px; }
+    .search-title { font-size: 18px; font-weight: 600; margin: 0 0 4px; }
+    .search-subtitle { font-size: 13px; color: var(--text-muted); margin: 0 0 20px; }
+
+    .search-box { margin-bottom: 16px; }
+    .search-box textarea {
+      width: 100%; padding: 12px 14px; border: 1px solid var(--border-mid); border-radius: 10px;
+      font-size: 14px; font-family: inherit; color: var(--text-primary); background: var(--surface-0);
+      resize: none; outline: none; line-height: 1.5; box-sizing: border-box;
+    }
+    .search-box textarea:focus { border-color: var(--orange-500); box-shadow: 0 0 0 3px rgba(249,115,22,.1); }
+    .search-hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+
+    .search-btn {
+      padding: 10px 24px; border: none; border-radius: 8px;
+      background: linear-gradient(135deg, var(--orange-500), var(--red-600));
+      color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity .15s;
+    }
+    .search-btn:hover { opacity: .88; }
+    .search-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    .ai-insight {
+      background: var(--orange-50); border: 1px solid var(--orange-200); border-radius: 10px;
+      padding: 14px 18px; margin: 20px 0; font-size: 13px; color: var(--text-primary); display: none;
+    }
+    .ai-insight-icon { margin-right: 6px; }
+
+    .results-header { font-size: 14px; font-weight: 600; margin: 20px 0 12px; display: none; }
+
+    .results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+
+    .eng-card {
+      background: var(--surface-0); border: 1px solid var(--border); border-radius: 10px;
+      padding: 18px; transition: border-color .15s;
+    }
+    .eng-card:hover { border-color: var(--orange-200); }
+    .eng-card-name { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+    .eng-card-role { font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; }
+    .eng-card-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .eng-tag {
+      display: inline-block; padding: 2px 10px; font-size: 11px; font-weight: 500;
+      border-radius: 4px; background: var(--orange-50); color: var(--orange-600); border: 1px solid var(--orange-200);
+    }
+    .eng-tag.matched { background: var(--success-bg); color: var(--success); border-color: #bbf7d0; }
+    .eng-card-summary { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5; }
+    .eng-card-btn {
+      display: inline-block; padding: 6px 14px; font-size: 12px; font-weight: 500;
+      border: 1px solid var(--border-mid); border-radius: 6px; background: var(--surface-0);
+      color: var(--text-secondary); cursor: pointer; text-decoration: none; transition: background .1s;
+    }
+    .eng-card-btn:hover { background: var(--surface-2); }
+  </style>
+</head>
+<body>
+  <nav class="topnav">
+    <div class="topnav-left">
+      <div class="logo"><div class="logo-icon">T</div><div class="logo-text">Talent<span>OS</span></div></div>
+    </div>
+    <div class="topnav-right">
+      <div class="user-info">
+        <span class="user-name">{{ user.name }}</span>
+        <span class="role-badge">{{ user.role }}</span>
+      </div>
+      <div class="avatar-sm">{{ user.name[0] }}</div>
+    </div>
+  </nav>
+
+  <div class="sidenav">
+    {% if user.role in ['engineer', 'admin'] %}
+    <a href="/skillsheet" data-path="/skillsheet">スキルシート管理</a>
+    <a href="/hearing" data-path="/hearing">AIヒアリング</a>
+    {% endif %}
+    {% if user.role in ['sales', 'admin'] %}
+    <a href="/search" data-path="/search" class="active">人材検索</a>
+    {% endif %}
+    {% if user.role == 'admin' %}
+    <a href="/users" data-path="/users">ユーザー管理</a>
+    {% endif %}
+    <a href="#" onclick="doLogout()">ログアウト</a>
+  </div>
+
+  <div class="main-content">
+    <div class="search-area">
+      <h2 class="search-title">人材検索</h2>
+      <p class="search-subtitle">案件要件を入力してください</p>
+
+      <div class="search-box">
+        <textarea id="search-query" rows="3" placeholder="例：Python3年以上、AWS経験あり、リモート可能"></textarea>
+        <div class="search-hint">自然文で入力できます。AIが要件を解析して最適なエンジニアを検索します。</div>
+      </div>
+
+      <button class="search-btn" id="search-btn">&#128269; AIで検索する</button>
+
+      <div class="ai-insight" id="ai-insight">
+        <span class="ai-insight-icon">&#128161;</span>
+        <span id="ai-insight-text"></span>
+      </div>
+
+      <div class="results-header" id="results-header">検索結果 <span id="results-count">0</span>件</div>
+      <div class="results-grid" id="results-grid"></div>
+    </div>
+  </div>
+
+  <script src="/static/js/common.js"></script>
+  <script>
+    var searchBtn = document.getElementById("search-btn");
+    var queryEl = document.getElementById("search-query");
+    var insightEl = document.getElementById("ai-insight");
+    var insightText = document.getElementById("ai-insight-text");
+    var resultsHeader = document.getElementById("results-header");
+    var resultsCount = document.getElementById("results-count");
+    var resultsGrid = document.getElementById("results-grid");
+
+    searchBtn.addEventListener("click", doSearch);
+    queryEl.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); doSearch(); }
+    });
+
+    async function doSearch() {
+      var query = queryEl.value.trim();
+      if (!query) return;
+
+      searchBtn.disabled = true;
+      searchBtn.textContent = "検索中...";
+      insightEl.style.display = "none";
+      resultsHeader.style.display = "none";
+      resultsGrid.innerHTML = "";
+
+      try {
+        var res = await fetch("/api/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: query }),
+        });
+        var data = await res.json();
+
+        insightText.textContent = data.ai_insight || "";
+        insightEl.style.display = "block";
+
+        var results = data.results || [];
+        resultsCount.textContent = results.length;
+        resultsHeader.style.display = "block";
+
+        results.forEach(function (r) {
+          var tags = (r.top_skills || []).map(function (s) {
+            var cls = (r.matched_skills || []).indexOf(s) >= 0 ? "eng-tag matched" : "eng-tag";
+            return '<span class="' + cls + '">' + esc(s) + '</span>';
+          }).join("");
+
+          var card = document.createElement("div");
+          card.className = "eng-card";
+          card.innerHTML =
+            '<div class="eng-card-name">' + esc(r.name) + '</div>' +
+            '<div class="eng-card-role">' + esc(r.latest_role || r.specialty || "") + '</div>' +
+            '<div class="eng-card-tags">' + tags + '</div>' +
+            '<div class="eng-card-summary">' + esc(r.experience_summary || "") + '</div>' +
+            '<a class="eng-card-btn" href="/skillsheet?engineer_id=' + encodeURIComponent(r.engineer_id) + '">スキルシートを見る</a>';
+          resultsGrid.appendChild(card);
+        });
+      } catch (e) {
+        insightText.textContent = "検索中にエラーが発生しました。";
+        insightEl.style.display = "block";
+      } finally {
+        searchBtn.disabled = false;
+        searchBtn.textContent = "\uD83D\uDD0D AIで検索する";
+      }
+    }
+
+    function esc(s) {
+      var d = document.createElement("div");
+      d.textContent = s || "";
+      return d.innerHTML;
+    }
+  </script>
+</body>
+</html>

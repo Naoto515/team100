@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ログイン - TalentOS</title>
+  <link rel="stylesheet" href="/static/css/common.css">
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface-1);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    }
+
+    .login-card {
+      background: var(--surface-0);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 40px 36px 32px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.06);
+    }
+
+    .login-card .logo {
+      justify-content: center;
+      margin-bottom: 32px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border-mid);
+      border-radius: 8px;
+      font-size: 14px;
+      color: var(--text-primary);
+      background: var(--surface-0);
+      outline: none;
+      transition: border-color .15s;
+      box-sizing: border-box;
+    }
+
+    .form-group input:focus {
+      border-color: var(--orange-500);
+      box-shadow: 0 0 0 3px rgba(249,115,22,.12);
+    }
+
+    .login-btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--orange-500), var(--red-600));
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s;
+      margin-top: 4px;
+    }
+
+    .login-btn:hover {
+      opacity: .9;
+    }
+
+    .login-btn:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    .error-msg {
+      margin-top: 16px;
+      padding: 10px 12px;
+      background: var(--red-50);
+      border: 1px solid var(--red-500);
+      border-radius: 8px;
+      color: var(--red-700);
+      font-size: 13px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="logo">
+      <div class="logo-icon">T</div>
+      <div class="logo-text">Talent<span>OS</span></div>
+    </div>
+
+    <div class="form-group">
+      <label for="user_id">ユーザーID</label>
+      <input type="text" id="user_id" autocomplete="username" autofocus>
+    </div>
+
+    <div class="form-group">
+      <label for="password">パスワード</label>
+      <input type="password" id="password" autocomplete="current-password">
+    </div>
+
+    <button class="login-btn" id="login-btn">ログイン</button>
+
+    <div class="error-msg" id="error-msg"></div>
+  </div>
+
+  <script>
+    const loginBtn = document.getElementById('login-btn');
+    const userIdInput = document.getElementById('user_id');
+    const passwordInput = document.getElementById('password');
+    const errorMsg = document.getElementById('error-msg');
+
+    async function doLogin() {
+      const userId = userIdInput.value.trim();
+      const password = passwordInput.value;
+
+      if (!userId || !password) {
+        showError('ユーザーIDとパスワードを入力してください');
+        return;
+      }
+
+      loginBtn.disabled = true;
+      errorMsg.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: userId, password: password }),
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          const redirectMap = {
+            engineer: '/hearing',
+            sales: '/search',
+            admin: '/users',
+          };
+          window.location.href = redirectMap[data.role] || '/top';
+        } else {
+          showError(data.message);
+        }
+      } catch (e) {
+        showError('通信エラーが発生しました');
+      } finally {
+        loginBtn.disabled = false;
+      }
+    }
+
+    function showError(msg) {
+      errorMsg.textContent = msg;
+      errorMsg.style.display = 'block';
+    }
+
+    loginBtn.addEventListener('click', doLogin);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') doLogin();
+    });
+  </script>
+</body>
+</html>

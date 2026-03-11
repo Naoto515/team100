@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl:*)",
+      "Bash(# Create user echo ''{\"\"user_id\"\":\"\"engineer02\"\",\"\"name\"\":\"\"鈴木 次郎\"\",\"\"role\"\":\"\"engineer\"\",\"\"password\"\":\"\"pass123\"\"}'' curl -s -b /tmp/cookies.txt -X POST http://127.0.0.1:8003/api/users -H \"\"Content-Type: application/json\"\" -d @/tmp/p.json echo \"\"\"\" # Verify 4 users curl -s -b /tmp/cookies.txt http://127.0.0.1:8003/api/users)",
+      "Bash(python -c:*)"
+    ]
+  }
+}

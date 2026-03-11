@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AIヒアリング - TalentOS</title>
+  <link rel="stylesheet" href="/static/css/common.css">
+  <link rel="stylesheet" href="/static/css/ai-hearing.css">
+</head>
+<body>
+  <!-- トップナビ -->
+  <nav class="topnav">
+    <div class="topnav-left">
+      <div class="logo">
+        <div class="logo-icon">T</div>
+        <div class="logo-text">Talent<span>OS</span></div>
+      </div>
+    </div>
+    <div class="topnav-right">
+      <div class="user-info">
+        <span class="user-name">{{ user.name }}</span>
+        <span class="role-badge">{{ user.role }}</span>
+      </div>
+      <div class="avatar-sm">{{ user.name[0] }}</div>
+    </div>
+  </nav>
+
+  <!-- サイドナビ -->
+  <div class="sidenav">
+    {% if user.role in ['engineer', 'admin'] %}
+    <a href="/skillsheet" data-path="/skillsheet">スキルシート管理</a>
+    <a href="/hearing" data-path="/hearing" class="active">AIヒアリング</a>
+    {% endif %}
+    {% if user.role in ['sales', 'admin'] %}
+    <a href="/search" data-path="/search">人材検索</a>
+    {% endif %}
+    {% if user.role == 'admin' %}
+    <a href="/users" data-path="/users">ユーザー管理</a>
+    {% endif %}
+    <a href="#" onclick="doLogout()">ログアウト</a>
+  </div>
+
+  <!-- メインコンテンツ（3カラム） -->
+  <div class="hearing-layout">
+    <!-- チャットメインエリア -->
+    <div class="chat-main">
+      <!-- チャットヘッダー -->
+      <div class="chat-header">
+        <div class="chat-header-left">
+          <h2 class="chat-title">AIスキルヒアリング — <span id="header-user-name">{{ user.name }}</span></h2>
+          <span class="chat-subtitle" id="session-time"></span>
+        </div>
+        <div class="chat-header-right">
+          <button class="btn-outline" onclick="alert('準備中です')">エクスポート</button>
+          <button class="btn-outline" onclick="alert('準備中です')">レポート生成</button>
+        </div>
+      </div>
+
+      <!-- テーマ進捗インジケーター -->
+      <div class="theme-progress">
+        <div class="theme-step" id="step-basic">
+          <span class="theme-dot" id="dot-basic"></span>
+          <span class="theme-label">基本情報</span>
+        </div>
+        <div class="theme-arrow">→</div>
+        <div class="theme-step" id="step-career">
+          <span class="theme-dot" id="dot-career"></span>
+          <span class="theme-label">経歴</span>
+        </div>
+        <div class="theme-arrow">→</div>
+        <div class="theme-step" id="step-skills">
+          <span class="theme-dot" id="dot-skills"></span>
+          <span class="theme-label">スキル・資格</span>
+        </div>
+      </div>
+
+      <!-- メッセージエリア -->
+      <div class="messages-area" id="messages-area">
+        <!-- メッセージはJSで動的追加 -->
+      </div>
+
+      <!-- 入力エリア -->
+      <div class="input-area">
+        <div class="hint-chips">
+          <button class="hint-chip" data-text="技術スタックについて話したいです">🛠 技術スタック</button>
+          <button class="hint-chip" data-text="チームでの経験について話したいです">👥 チーム経験</button>
+          <button class="hint-chip" data-text="得意なことについて話したいです">🎯 得意なこと</button>
+          <button class="hint-chip" data-text="成長を実感した経験について話したいです">📈 成長実感</button>
+        </div>
+        <div class="input-row">
+          <textarea id="message-input" placeholder="メッセージを入力..." rows="1"></textarea>
+          <button class="send-btn" id="send-btn" title="送信">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右サイドバー -->
+    <div class="right-sidebar">
+      <!-- プロフィールカード -->
+      <div class="profile-card">
+        <div class="profile-header">
+          <div class="profile-avatar" id="profile-avatar">{{ user.name[0] }}</div>
+          <div class="profile-info">
+            <div class="profile-name">{{ user.name }}</div>
+            <span class="status-badge status-active">稼働中</span>
+          </div>
+        </div>
+        <div class="profile-tags">
+          <span class="profile-tag" id="tag-role">{{ user.role }}</span>
+          <span class="profile-tag" id="tag-exp">—</span>
+          <span class="profile-tag" id="tag-location">—</span>
+        </div>
+      </div>
+
+      <!-- スキル評価セクション -->
+      <div class="skill-section">
+        <div class="skill-section-header">
+          <span class="skill-section-title">スキル評価</span>
+          <span class="ai-badge">AI分析</span>
+        </div>
+        <div class="skill-bars" id="skill-bars">
+          <p class="skill-placeholder">ヒアリング開始後に自動更新されます</p>
+        </div>
+      </div>
+
+      <!-- 抽出データプレビュー -->
+      <div class="extracted-section" id="extracted-section" style="display:none;">
+        <div class="skill-section-header">
+          <span class="skill-section-title">抽出データ</span>
+        </div>
+        <div class="extracted-data" id="extracted-data"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- テンプレートデータ -->
+  <script>
+    window.__USER__ = {
+      user_id: "{{ user.user_id }}",
+      name: "{{ user.name }}",
+      role: "{{ user.role }}"
+    };
+  </script>
+  <script src="/static/js/common.js"></script>
+  <script src="/static/js/hearing.js"></script>
+</body>
+</html>
