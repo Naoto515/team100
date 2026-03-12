@@ -5,8 +5,8 @@ from __future__ import annotations
 import os
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
-from fastapi.exceptions import HTTPException
-from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
+from typing import Union
+from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
@@ -98,7 +98,11 @@ class SessionMiddleware:
                     await response(scope, receive, send)
                     return
 
-                await self.app(scope, receive, send)
+                try:
+                    await self.app(scope, receive, send)
+                except Exception:
+                    response = RedirectResponse(url="/login", status_code=302)
+                    await response(scope, receive, send)
                 return
             except (BadSignature, SignatureExpired):
                 pass
@@ -163,19 +167,12 @@ async def users_page(request: Request) -> HTMLResponse:
     })
 
 
-# --- カスタムエラーハンドラ ---
-@app.exception_handler(404)
-async def not_found_handler(request: Request, exc: HTTPException) -> RedirectResponse | JSONResponse:
+# --- 未定義パスの catch-all（全ルート定義の後に置くこと） ---
+@app.api_route("/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+async def catch_all(request: Request, full_path: str) -> Response:
     if request.url.path.startswith("/api/"):
         return JSONResponse(status_code=404, content={"detail": "Not Found"})
     return RedirectResponse(url="/top", status_code=302)
-
-
-@app.exception_handler(500)
-async def server_error_handler(request: Request, exc: Exception) -> RedirectResponse | JSONResponse:
-    if request.url.path.startswith("/api/"):
-        return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
-    return RedirectResponse(url="/login", status_code=302)
 
 
 # --- 起動時にDB初期化 ---
