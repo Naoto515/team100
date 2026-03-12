@@ -1,5 +1,7 @@
 """FastAPI エントリポイント"""
 
+from __future__ import annotations
+
 import os
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
@@ -15,7 +17,11 @@ from routers import auth, skillsheet, hearing, search, users
 load_dotenv()
 
 app = FastAPI(title="TalentOS")
-app.state.secret_key = os.getenv("SECRET_KEY", "default-secret-key")
+
+_secret_key: str | None = os.getenv("SECRET_KEY")
+if not _secret_key:
+    raise RuntimeError("SECRET_KEY が設定されていません。.env ファイルに SECRET_KEY を設定してください。")
+app.state.secret_key = _secret_key
 
 # 静的ファイル・テンプレート
 app.mount("/static", StaticFiles(directory="static"), name="static")

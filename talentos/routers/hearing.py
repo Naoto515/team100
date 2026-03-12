@@ -1,11 +1,13 @@
 """AIヒアリング（Dify連携 / モック対応）"""
 
+from __future__ import annotations
+
 import json
 import os
 import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from db.database import get_connection
@@ -264,7 +266,12 @@ async def _dify_chat(engineer_id: str, theme: str, user_message: str, messages: 
 
 @router.post("/optimize")
 async def optimize(body: OptimizeRequest, request: Request) -> dict:
+    user: dict = request.state.user
     engineer_id: str = body.engineer_id
+
+    if user["role"] == "engineer" and user["user_id"] != engineer_id:
+        raise HTTPException(status_code=403, detail="自分のデータのみ操作できます")
+
     conn = get_connection()
     rows = conn.execute(
         "SELECT theme, raw_data FROM skill_sheets WHERE engineer_id = ?",

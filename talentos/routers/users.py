@@ -1,5 +1,7 @@
 """ユーザー管理（管理者用）"""
 
+from __future__ import annotations
+
 from fastapi import APIRouter, Request, HTTPException
 from pydantic import BaseModel
 from passlib.hash import bcrypt

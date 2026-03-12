@@ -1,5 +1,7 @@
 """人材検索（Dify連携 / モック対応）"""
 
+from __future__ import annotations
+
 import json
 import os
 import re

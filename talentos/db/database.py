@@ -1,5 +1,7 @@
 """SQLite 接続・初期化"""
 
+from __future__ import annotations
+
 import sqlite3
 import os
 from passlib.hash import bcrypt

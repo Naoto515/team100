@@ -1,5 +1,7 @@
 """スキルシートCRUD + PDF出力"""
 
+from __future__ import annotations
+
 import json
 import datetime
 from fastapi import APIRouter, Request, HTTPException
