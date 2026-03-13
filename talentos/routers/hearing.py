@@ -249,7 +249,7 @@ async def _dify_chat(engineer_id: str, theme: str, user_message: str, messages: 
     headers: dict = {"Authorization": f"Bearer {DIFY_HEARING_API_KEY}"}
 
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
+        async with httpx.AsyncClient(timeout=120) as client:
             resp = await client.post(f"{DIFY_BASE_URL}/v1/chat-messages", json=payload, headers=headers)
 
         if resp.status_code >= 500:
@@ -261,6 +261,7 @@ async def _dify_chat(engineer_id: str, theme: str, user_message: str, messages: 
             }
 
         data: dict = resp.json()
+        print(f"[DEBUG] Dify chat response: {json.dumps(data, ensure_ascii=False, default=str)[:2000]}")
     except httpx.TimeoutException:
         return {
             "message": "AIの応答がタイムアウトしました。再度お試しください。",
