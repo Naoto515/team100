@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import os
 from dotenv import load_dotenv
+
+load_dotenv()
+
 from fastapi import FastAPI, Request
 from typing import Union
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse, Response
@@ -14,8 +17,6 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from db.database import init_db
 from routers import auth, skillsheet, hearing, search, users
-
-load_dotenv()
 
 app = FastAPI(title="TalentOS")
 

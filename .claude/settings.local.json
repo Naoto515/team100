@@ -14,7 +14,8 @@
       "Bash(do echo \"PID $pid:\")",
       "Bash(done)",
       "Bash(for i in 1 2 3 4 5)",
-      "Bash(do curl -s -b /tmp/talentos_test3 -w \"HTTP:%{http_code} \" -o /dev/null http://localhost:8000/doc)"
+      "Bash(do curl -s -b /tmp/talentos_test3 -w \"HTTP:%{http_code} \" -o /dev/null http://localhost:8000/doc)",
+      "Bash(cloudflared:*)"
     ]
   }
 }
