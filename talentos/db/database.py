@@ -29,6 +29,7 @@ def init_db() -> None:
         ("admin01", "admin123", "管理者", "admin"),
         ("engineer01", "pass123", "山田 太郎", "engineer"),
         ("sales01", "pass123", "佐藤 花子", "sales"),
+        ("api", "api-no-login", "API", "admin"),
     ]
     for user_id, password, name, role in seed_users:
         cur.execute(
