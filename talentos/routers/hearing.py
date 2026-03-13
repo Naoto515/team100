@@ -9,6 +9,7 @@ import datetime
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from db.database import get_connection
@@ -111,8 +112,24 @@ def _extract_json_from_answer(answer: str) -> Optional[dict]:
 
 
 def _clean_answer_for_display(answer: str) -> str:
-    """返答から JSON ブロックを除去して表示用テキストを返す"""
+    """返答から JSON ブロック・先頭の生JSONを除去して表示用テキストを返す"""
+    # ```json ... ``` ブロックを除去
     cleaned: str = re.sub(r'```json\s*[\s\S]*?\s*```', '', answer).strip()
+    # 先頭の JSON 配列/オブジェクトを除去（HTTPリクエストノードの出力混入対策）
+    if cleaned.startswith("[") or cleaned.startswith("{"):
+        bracket = "]" if cleaned.startswith("[") else "}"
+        depth: int = 0
+        end_pos: int = 0
+        for i, ch in enumerate(cleaned):
+            if ch in ("[", "{"):
+                depth += 1
+            elif ch in ("]", "}"):
+                depth -= 1
+                if depth == 0:
+                    end_pos = i + 1
+                    break
+        if end_pos > 0:
+            cleaned = cleaned[end_pos:].strip()
     return cleaned if cleaned else answer
 
 
@@ -198,6 +215,40 @@ async def chat(body: ChatRequest, request: Request) -> dict:
         return await _dify_chat(engineer_id, theme, message, messages, conversation_id)
     else:
         return _mock_chat(engineer_id, theme, messages, conversation_id)
+
+
+@router.post("/chat/stream")
+async def chat_stream(body: ChatRequest, request: Request) -> StreamingResponse:
+    """ストリーミング対応チャットエンドポイント（SSE）"""
+    user: dict = request.state.user
+    engineer_id: str = user["user_id"]
+    theme: str = body.theme
+    message: str = body.message
+    conversation_id: str = body.conversation_id or ""
+
+    messages: list[dict] = _get_messages(engineer_id, theme)
+    now: str = datetime.datetime.now().isoformat()
+    messages.append({"role": "user", "content": message, "timestamp": now})
+
+    if _use_dify_hearing():
+        return StreamingResponse(
+            _dify_chat_stream(engineer_id, theme, message, messages, conversation_id),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+    else:
+        result: dict = _mock_chat(engineer_id, theme, messages, conversation_id)
+
+        async def mock_stream():
+            # モック時は一括送信
+            yield f"data: {json.dumps({'type': 'token', 'content': result['message']}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'conversation_id': result['conversation_id'], 'theme_completed': result['theme_completed'], 'sheet_update': result['sheet_update']}, ensure_ascii=False)}\n\n"
+
+        return StreamingResponse(
+            mock_stream(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
 
 
 def _mock_chat(engineer_id: str, theme: str, messages: list[dict], conversation_id: str) -> dict:
@@ -296,6 +347,113 @@ async def _dify_chat(engineer_id: str, theme: str, user_message: str, messages: 
         "conversation_id": conv_id,
         "sheet_update": sheet_update,
     }
+
+
+async def _dify_chat_stream(engineer_id: str, theme: str, user_message: str, messages: list[dict], conversation_id: str):
+    """Dify ストリーミング API を SSE で中継するジェネレータ"""
+    import httpx
+
+    now: str = datetime.datetime.now().isoformat()
+    payload: dict = {
+        "query": user_message,
+        "conversation_id": conversation_id,
+        "inputs": {
+            "theme": theme,
+            "required_fields": REQUIRED_FIELDS.get(theme, ""),
+        },
+        "response_mode": "streaming",
+        "user": engineer_id,
+    }
+    headers: dict = {"Authorization": f"Bearer {DIFY_HEARING_API_KEY}"}
+
+    full_answer: str = ""
+    conv_id: str = conversation_id
+    in_json_block: bool = False
+    json_buffer: str = ""
+
+    try:
+        async with httpx.AsyncClient(timeout=120) as client:
+            async with client.stream(
+                "POST", f"{DIFY_BASE_URL}/v1/chat-messages",
+                json=payload, headers=headers,
+            ) as resp:
+                if resp.status_code >= 500:
+                    yield f"data: {json.dumps({'type': 'token', 'content': 'AI機能が一時的に利用できません。'}, ensure_ascii=False)}\n\n"
+                    yield f"data: {json.dumps({'type': 'done', 'conversation_id': conversation_id, 'theme_completed': False, 'sheet_update': None}, ensure_ascii=False)}\n\n"
+                    return
+
+                buffer: str = ""
+                async for chunk in resp.aiter_text():
+                    buffer += chunk
+                    while "\n\n" in buffer:
+                        event_str, buffer = buffer.split("\n\n", 1)
+                        # SSE イベントをパース
+                        data_line: str = ""
+                        for line in event_str.split("\n"):
+                            if line.startswith("data: "):
+                                data_line = line[6:]
+
+                        if not data_line:
+                            continue
+
+                        try:
+                            event_data: dict = json.loads(data_line)
+                        except json.JSONDecodeError:
+                            continue
+
+                        event_type: str = event_data.get("event", "")
+
+                        if event_type == "message":
+                            delta: str = event_data.get("answer", "")
+                            full_answer += delta
+                            conv_id = event_data.get("conversation_id", conv_id)
+
+                            # JSON ブロック・先頭 JSON をスキップして表示用テキストのみ送信
+                            clean_delta: str = delta
+                            # ```json ブロック内はスキップ
+                            if "```json" in delta:
+                                in_json_block = True
+                                clean_delta = delta[:delta.index("```json")]
+                            if in_json_block:
+                                if "```" in delta and not delta.strip().startswith("```json"):
+                                    in_json_block = False
+                                    idx = delta.index("```") + 3
+                                    clean_delta = delta[idx:]
+                                else:
+                                    clean_delta = ""
+
+                            if clean_delta:
+                                yield f"data: {json.dumps({'type': 'token', 'content': clean_delta}, ensure_ascii=False)}\n\n"
+
+                        elif event_type == "message_end":
+                            conv_id = event_data.get("conversation_id", conv_id)
+
+    except httpx.TimeoutException:
+        yield f"data: {json.dumps({'type': 'token', 'content': 'AIの応答がタイムアウトしました。再度お試しください。'}, ensure_ascii=False)}\n\n"
+        yield f"data: {json.dumps({'type': 'done', 'conversation_id': conversation_id, 'theme_completed': False, 'sheet_update': None}, ensure_ascii=False)}\n\n"
+        return
+    except Exception:
+        yield f"data: {json.dumps({'type': 'token', 'content': '通信エラーが発生しました。'}, ensure_ascii=False)}\n\n"
+        yield f"data: {json.dumps({'type': 'done', 'conversation_id': conversation_id, 'theme_completed': False, 'sheet_update': None}, ensure_ascii=False)}\n\n"
+        return
+
+    # ストリーム完了後にDB保存・テーマ完了判定
+    display_message: str = _clean_answer_for_display(full_answer)
+    parsed: Optional[dict] = _extract_json_from_answer(full_answer)
+    theme_completed: bool = bool(parsed and parsed.get("theme_completed"))
+
+    messages.append({"role": "assistant", "content": display_message, "timestamp": now})
+
+    sheet_update: Optional[dict] = None
+    if theme_completed and parsed:
+        extracted: dict = parsed.get("extracted_data", parsed)
+        _save_messages(engineer_id, theme, messages, conv_id, completed=True)
+        _save_sheet(engineer_id, theme, extracted)
+        sheet_update = {"theme": theme, "data": extracted}
+    else:
+        _save_messages(engineer_id, theme, messages, conv_id, completed=False)
+
+    yield f"data: {json.dumps({'type': 'done', 'conversation_id': conv_id, 'theme_completed': theme_completed, 'sheet_update': sheet_update}, ensure_ascii=False)}\n\n"
 
 
 @router.post("/optimize")

@@ -98,6 +98,18 @@ function appendAiMessage(text) {
   scrollToBottom();
 }
 
+/** ストリーミング用: 空のAIメッセージバブルを追加して返す */
+function appendAiMessageStreaming() {
+  var wrapper = document.createElement("div");
+  wrapper.className = "message ai";
+  wrapper.innerHTML =
+    '<div class="ai-avatar">AI</div>' +
+    '<div class="msg-bubble streaming-bubble"></div>';
+  messagesArea.appendChild(wrapper);
+  scrollToBottom();
+  return wrapper.querySelector(".streaming-bubble");
+}
+
 function appendUserMessage(text) {
   var initials = (window.__USER__ && window.__USER__.name ? window.__USER__.name[0] : "U");
   var wrapper = document.createElement("div");
@@ -174,8 +186,8 @@ async function onSend() {
   showTyping();
 
   try {
-    // 3. API呼び出し
-    var res = await fetch("/api/hearing/chat", {
+    // 3. ストリーミングAPI呼び出し
+    var res = await fetch("/api/hearing/chat/stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -184,23 +196,60 @@ async function onSend() {
         conversation_id: state.conversationId,
       }),
     });
-    var data = await res.json();
 
-    // 4. タイピング非表示
+    // 4. タイピング非表示 → ストリーミング用バブル作成
     hideTyping();
+    var bubble = appendAiMessageStreaming();
+    var fullText = "";
 
-    // 5. conversation_id 更新
-    if (data.conversation_id) {
-      state.conversationId = data.conversation_id;
+    // 5. SSEストリームを読み取り
+    var reader = res.body.getReader();
+    var decoder = new TextDecoder();
+    var sseBuffer = "";
+
+    while (true) {
+      var result = await reader.read();
+      if (result.done) break;
+
+      sseBuffer += decoder.decode(result.value, { stream: true });
+
+      // SSEイベントをパース（\n\n区切り）
+      while (sseBuffer.indexOf("\n\n") !== -1) {
+        var idx = sseBuffer.indexOf("\n\n");
+        var eventStr = sseBuffer.substring(0, idx);
+        sseBuffer = sseBuffer.substring(idx + 2);
+
+        // "data: ..." 行を取得
+        var lines = eventStr.split("\n");
+        for (var li = 0; li < lines.length; li++) {
+          if (lines[li].indexOf("data: ") === 0) {
+            var jsonStr = lines[li].substring(6);
+            try {
+              var evt = JSON.parse(jsonStr);
+              if (evt.type === "token") {
+                fullText += evt.content;
+                bubble.textContent = fullText;
+                scrollToBottom();
+              } else if (evt.type === "done") {
+                // conversation_id 更新
+                if (evt.conversation_id) {
+                  state.conversationId = evt.conversation_id;
+                }
+                // テーマ完了判定
+                if (evt.theme_completed) {
+                  handleThemeCompleted(evt);
+                }
+              }
+            } catch (parseErr) {
+              // JSON パースエラーは無視
+            }
+          }
+        }
+      }
     }
 
-    // 6. AI応答表示
-    appendAiMessage(data.message);
-
-    // 7. テーマ完了判定
-    if (data.theme_completed) {
-      handleThemeCompleted(data);
-    }
+    // ストリーミング完了後、バブルのクラスを更新
+    bubble.classList.remove("streaming-bubble");
   } catch (e) {
     hideTyping();
     appendAiMessage("通信エラーが発生しました。もう一度お試しください。");
