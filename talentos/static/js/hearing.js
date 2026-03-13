@@ -239,6 +239,8 @@ async function onSend() {
                 if (evt.theme_completed) {
                   handleThemeCompleted(evt);
                 }
+                // ストリーム読み取りを即終了
+                reader.cancel();
               }
             } catch (parseErr) {
               // JSON パースエラーは無視
