@@ -9,7 +9,7 @@ dependencies:
 - current_identifier: null
   type: marketplace
   value:
-    marketplace_plugin_unique_identifier: langgenius/gemini:0.7.11@a04d9018c09e26bf88a745adc0dab298b066ee4cd3a5d8788c5a25a3e869bd34
+    marketplace_plugin_unique_identifier: langgenius/gemini:0.7.15@ca2b8f2599b87de968354f0e2ccbbc0d76bac5ebf275c3f0fbdae48881d74518
     version: null
 kind: app
 version: 0.6.0
@@ -23,7 +23,15 @@ workflow:
     - test
     value: '0'
     value_type: string
-  environment_variables: []
+  environment_variables:
+  - description: ''
+    id: 4694d9aa-d5e4-4a03-924d-869d2f68d2bd
+    name: fastapi
+    selector:
+    - env
+    - fastapi
+    value: https://ron-frequent-resolution-businesses.trycloudflare.com/
+    value_type: string
   features:
     file_upload:
       allowed_file_extensions:
@@ -124,6 +132,28 @@ workflow:
       source: '1773209475583'
       sourceHandle: 'true'
       target: '1773210729897'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: llm
+        targetType: http-request
+      id: llm-source-1773197198737-target
+      source: llm
+      sourceHandle: source
+      target: '1773197198737'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: http-request
+        targetType: answer
+      id: 1773197198737-source-1773281747094-target
+      source: '1773197198737'
+      sourceHandle: source
+      target: '1773281747094'
       targetHandle: target
       type: custom
       zIndex: 0
@@ -247,11 +277,11 @@ workflow:
       height: 101
       id: answer
       position:
-        x: 677.3609841784543
-        y: 86.71282920561161
+        x: 612.9402424945412
+        y: 8.363278508960462
       positionAbsolute:
-        x: 677.3609841784543
-        y: 86.71282920561161
+        x: 612.9402424945412
+        y: 8.363278508960462
       selected: false
       sourcePosition: right
       targetPosition: left
@@ -264,14 +294,14 @@ workflow:
         body:
           data: []
           type: none
-        headers: ''
+        headers: X-API-Key:talentos-dify-callback-key
         method: get
         params: ''
         retry_config:
           max_retries: 3
           retry_enabled: true
           retry_interval: 100
-        selected: false
+        selected: true
         ssl_verify: true
         timeout:
           max_connect_timeout: 0
@@ -279,17 +309,17 @@ workflow:
           max_write_timeout: 0
         title: HTTP リクエスト
         type: http-request
-        url: ''
+        url: '{{#env.fastapi#}}api/users'
         variables: []
-      height: 81
+      height: 124
       id: '1773197198737'
       position:
-        x: 1235.6372592384325
-        y: 694.6235505114873
+        x: 941.4074017350417
+        y: 282
       positionAbsolute:
-        x: 1235.6372592384325
-        y: 694.6235505114873
-      selected: false
+        x: 941.4074017350417
+        y: 282
+      selected: true
       sourcePosition: right
       targetPosition: left
       type: custom
@@ -313,11 +343,11 @@ workflow:
       height: 123
       id: '1773209475583'
       position:
-        x: 939.1281856667354
-        y: 518.438426203948
+        x: 979.1735115783572
+        y: 583.4672083755413
       positionAbsolute:
-        x: 939.1281856667354
-        y: 518.438426203948
+        x: 979.1735115783572
+        y: 583.4672083755413
       selected: false
       sourcePosition: right
       targetPosition: left
@@ -351,11 +381,11 @@ workflow:
       height: 51
       id: '1773209707127'
       position:
-        x: 631.2111382020979
-        y: 451.14352275453047
+        x: 625.9878348223211
+        y: 583.4672083755413
       positionAbsolute:
-        x: 631.2111382020979
-        y: 451.14352275453047
+        x: 625.9878348223211
+        y: 583.4672083755413
       selected: false
       sourcePosition: right
       targetPosition: left
@@ -365,25 +395,44 @@ workflow:
         answer: '{{#1773209707127.result#}}
 
           {{#1773209707127.json#}}'
-        selected: true
+        selected: false
         title: 回答 2
         type: answer
         variables: []
       height: 120
       id: '1773210729897'
       position:
-        x: 1284.6719467222408
-        y: 451.14352275453047
+        x: 1427.4422391028054
+        y: 614.8070286542018
       positionAbsolute:
-        x: 1284.6719467222408
-        y: 451.14352275453047
-      selected: true
+        x: 1427.4422391028054
+        y: 614.8070286542018
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        answer: '{{#1773197198737.body#}}'
+        selected: false
+        title: 回答 3
+        type: answer
+        variables: []
+      height: 101
+      id: '1773281747094'
+      position:
+        x: 1371.9860091742203
+        y: 282
+      positionAbsolute:
+        x: 1371.9860091742203
+        y: 282
+      selected: false
       sourcePosition: right
       targetPosition: left
       type: custom
       width: 242
     viewport:
-      x: -91.4269268198409
-      y: 36.4888599233542
-      zoom: 0.757858283255199
+      x: -0.4952863860079333
+      y: 155.69710236352557
+      zoom: 0.5743491774985177
   rag_pipeline_variables: []
